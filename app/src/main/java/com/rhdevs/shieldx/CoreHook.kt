@@ -3,7 +3,6 @@ package com.rhdevs.shieldx
 import android.location.Location
 import android.location.LocationManager
 import android.os.Build
-import android.view.View
 import android.view.Window
 import android.view.WindowManager
 import de.robv.android.xposed.IXposedHookLoadPackage
@@ -11,22 +10,29 @@ import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XSharedPreferences
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam
+import java.net.UnknownHostException
 
 class CoreHook : IXposedHookLoadPackage {
 
     private val pref = XSharedPreferences("com.rhdevs.shieldx", "shield_config")
 
+    // Daftar hitam server iklan (Template AdBlockList)
+    private val adDomains = listOf(
+        "googleads", "admob", "doubleclick", "applovin", "unityads",
+        "vungle", "inmobi", "chartboost", "adcolony", "amazon-adsystem",
+        "supersonicads", "appsflyer", "crashlytics", "scorecardresearch",
+        "flurry", "mopub", "smaato", "startapp", "tiktok.com/api/ad"
+    )
+
     override fun handleLoadPackage(lpparam: LoadPackageParam) {
         pref.reload()
         
-        // Membaca data yang disimpan dari UI multi-layar
         val isAdblock = pref.getBoolean("adblock_enabled", false)
         val imei = pref.getString("spoof_imei", "")
         val buildId = pref.getString("spoof_build", "")
         val releaseVer = pref.getString("spoof_release", "")
         val fingerprint = pref.getString("spoof_fingerprint", "")
         
-        // Data BARU
         val isFakeGps = pref.getBoolean("fake_gps_enabled", false)
         val lat = pref.getFloat("fake_gps_lat", -6.1754f).toDouble()
         val lon = pref.getFloat("fake_gps_lon", 106.8272f).toDouble()
@@ -34,7 +40,7 @@ class CoreHook : IXposedHookLoadPackage {
 
         if (lpparam.packageName == "android" || lpparam.packageName.contains("systemui")) return
 
-        // --- HOOK 1: Device Spoofing (Existing) ---
+        // --- HOOK 1: Device Spoofing ---
         if (!buildId.isNullOrEmpty()) {
             XposedHelpers.setStaticObjectField(Build::class.java, "ID", buildId)
             XposedHelpers.setStaticObjectField(Build::class.java, "DISPLAY", buildId)
@@ -53,68 +59,86 @@ class CoreHook : IXposedHookLoadPackage {
             } catch (e: Throwable) {}
         }
 
-        // --- HOOK 2: AdBlock (Existing) ---
+        // --- HOOK 2: MESIN PEMBLOKIR IKLAN TINGKAT JARINGAN (DNS HIJACK) ---
         if (isAdblock) {
             try {
-                XposedHelpers.findAndHookMethod("com.google.android.gms.ads.AdView", lpparam.classLoader, "loadAd", "com.google.android.gms.ads.AdRequest", object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        val view = param.thisObject as View
-                        view.visibility = View.GONE
-                        param.result = null
+                XposedHelpers.findAndHookMethod(
+                    "java.net.InetAddress",
+                    lpparam.classLoader,
+                    "getAllByName",
+                    String::class.java,
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam) {
+                            val host = param.args[0] as? String ?: return
+                            
+                            // Pindai apakah tautan mengandung keyword server iklan
+                            for (domain in adDomains) {
+                                if (host.contains(domain, ignoreCase = true)) {
+                                    // HANCURKAN TAUTAN: Paksa error DNS secara instan
+                                    param.throwable = UnknownHostException("Koneksi iklan diputus oleh ShieldX")
+                                    return
+                                }
+                            }
+                        }
+                    }
+                )
+            } catch (e: Throwable) {}
+
+            // Tambahan: Blokir pemuatan URL iklan di WebView
+            try {
+                XposedHelpers.findAndHookMethod(
+                    "android.webkit.WebView",
+                    lpparam.classLoader,
+                    "loadUrl",
+                    String::class.java,
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam) {
+                            val url = param.args[0] as? String ?: return
+                            for (domain in adDomains) {
+                                if (url.contains(domain, ignoreCase = true)) {
+                                    // Kosongkan URL agar WebView memuat halaman kosong
+                                    param.args[0] = "about:blank"
+                                    return
+                                }
+                            }
+                        }
+                    }
+                )
+            } catch (e: Throwable) {}
+        }
+
+        // --- HOOK 3: Fake GPS ---
+        if (isFakeGps) {
+            try {
+                XposedHelpers.findAndHookMethod(LocationManager::class.java, "getLastKnownLocation", String::class.java, object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val provider = param.args[0] as String
+                        val mockLocation = Location(provider).apply {
+                            latitude = lat
+                            longitude = lon
+                            altitude = 10.0
+                            accuracy = 1.0f
+                            time = System.currentTimeMillis()
+                            elapsedRealtimeNanos = android.os.SystemClock.elapsedRealtimeNanos()
+                        }
+                        param.result = mockLocation
                     }
                 })
             } catch (e: Throwable) {}
         }
 
-        // --- HOOK 3: BARU - Fake GPS (Location Manager) ---
-        if (isFakeGps) {
-            try {
-                // Hooking android.location.LocationManager.getLastKnownLocation
-                XposedHelpers.findAndHookMethod(
-                    LocationManager::class.java,
-                    "getLastKnownLocation",
-                    String::class.java,
-                    object : XC_MethodHook() {
-                        override fun afterHookedMethod(param: MethodHookParam) {
-                            val provider = param.args[0] as String
-                            // Membuat lokasi palsu seolah-olah asli
-                            val mockLocation = Location(provider)
-                            mockLocation.latitude = lat
-                            mockLocation.longitude = lon
-                            mockLocation.altitude = 10.0
-                            mockLocation.accuracy = 1.0f
-                            mockLocation.time = System.currentTimeMillis()
-                            mockLocation.elapsedRealtimeNanos = android.os.SystemClock.elapsedRealtimeNanos()
-                            param.result = mockLocation
-                        }
-                    }
-                )
-            } catch (e: Throwable) {}
-        }
-
-        // --- HOOK 4: BARU - Bypass FLAG_SECURE (Screenshot) ---
+        // --- HOOK 4: Bypass FLAG_SECURE ---
         if (isBypassSecure) {
             try {
-                // Hooking android.view.Window.setFlags
-                XposedHelpers.findAndHookMethod(
-                    Window::class.java,
-                    "setFlags",
-                    Int::class.javaPrimitiveType, // flags
-                    Int::class.javaPrimitiveType, // mask
-                    object : XC_MethodHook() {
-                        override fun beforeHookedMethod(param: MethodHookParam) {
-                            var flags = param.args[0] as Int
-                            val mask = param.args[1] as Int
-                            
-                            // Jika aplikasi target mencoba memasang FLAG_SECURE
-                            if (flags and WindowManager.LayoutParams.FLAG_SECURE != 0) {
-                                // Hancurkan bendera secure-nya sebelum sistem menerimanya
-                                flags = flags and WindowManager.LayoutParams.FLAG_SECURE.inv()
-                                param.args[0] = flags // Timpa argumen
-                            }
+                XposedHelpers.findAndHookMethod(Window::class.java, "setFlags", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        var flags = param.args[0] as Int
+                        if (flags and WindowManager.LayoutParams.FLAG_SECURE != 0) {
+                            flags = flags and WindowManager.LayoutParams.FLAG_SECURE.inv()
+                            param.args[0] = flags
                         }
                     }
-                )
+                })
             } catch (e: Throwable) {}
         }
     }
