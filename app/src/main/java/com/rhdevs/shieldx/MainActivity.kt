@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,13 +29,32 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(context: Context) {
-    val prefs = context.getSharedPreferences("shield_config", Context.MODE_WORLD_READABLE)
+    val prefName = "shield_config"
+    val prefs = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
     
     var adBlockState by remember { mutableStateOf(prefs.getBoolean("adblock_enabled", false)) }
     var imeiState by remember { mutableStateOf(prefs.getString("spoof_imei", "") ?: "") }
     var buildState by remember { mutableStateOf(prefs.getString("spoof_build", "") ?: "") }
     var releaseState by remember { mutableStateOf(prefs.getString("spoof_release", "") ?: "") }
     var fingerprintState by remember { mutableStateOf(prefs.getString("spoof_fingerprint", "") ?: "") }
+
+    fun setFilePermissions() {
+        try {
+            val dataDir = context.applicationInfo.dataDir
+            val prefsDir = File(dataDir, "shared_prefs")
+            val prefsFile = File(prefsDir, "$prefName.xml")
+            
+            if (prefsDir.exists()) {
+                prefsDir.setExecutable(true, false)
+                prefsDir.setReadable(true, false)
+            }
+            
+            if (prefsFile.exists()) {
+                prefsFile.setReadable(true, false)
+            }
+        } catch (e: Exception) {
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -60,9 +80,9 @@ fun MainScreen(context: Context) {
 
         Button(onClick = {
             imeiState = "86" + (1000000000000..9999999999999).random().toString()
-            releaseState = "14"
+            releaseState = listOf("13", "14", "15").random()
             buildState = "UP1A.231005.007"
-            fingerprintState = "google/husky/husky:14/UP1A.231005.007/10817346:user/release-keys"
+            fingerprintState = "google/husky/husky:${releaseState}/${buildState}/10817346:user/release-keys"
         }, modifier = Modifier.fillMaxWidth()) {
             Text("Acak Data")
         }
@@ -76,6 +96,7 @@ fun MainScreen(context: Context) {
                 putString("spoof_fingerprint", fingerprintState)
                 apply()
             }
+            setFilePermissions()
         }, modifier = Modifier.fillMaxWidth()) {
             Text("Simpan Konfigurasi")
         }
