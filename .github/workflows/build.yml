@@ -1,9 +1,13 @@
-name: Build Android APK
+name: Build and Release APK
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
+# Izin ini wajib ada agar Actions bisa membuat halaman Release
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -11,22 +15,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: set up JDK 17
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      # MEKANIKA 1: Membuat kunci tanda tangan statis agar aplikasi bisa di-update
+      - name: Generate Static Signature Keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Rhdevs ShieldX,O=Android,C=ID"
           
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
           
-      - name: Build with Gradle
+      - name: Build APK with Gradle
         run: gradle assembleDebug
           
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # MEKANIKA 2: Mengganti nama file agar lebih rapi saat diunduh
+      - name: Rename APK File
+        run: mv app/build/outputs/apk/debug/app-debug.apk ShieldX-Build-${{ github.run_number }}.apk
+          
+      # MEKANIKA 3: Mengirim file .apk mentah langsung ke GitHub Releases
+      - name: Upload to GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: ShieldX-Debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          tag_name: v1.0.${{ github.run_number }}
+          name: "ShieldX Build #${{ github.run_number }}"
+          body: "Pembaruan otomatis dari sistem. Aplikasi ini sudah mendukung in-place update (bisa langsung ditimpa tanpa uninstall)."
+          files: ShieldX-Build-${{ github.run_number }}.apk
