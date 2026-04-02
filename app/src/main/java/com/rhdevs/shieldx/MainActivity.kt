@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -37,11 +38,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Model untuk Item Navigasi
 sealed class NavItem(var title: String, var icon: ImageVector, var route: String) {
-    object Device : NavItem("Device", Icons.Default.PhoneAndroid, "device")
-    object Location : NavItem("Location", Icons.Default.Map, "location")
-    object Security : NavItem("Security", Icons.Default.Security, "security")
+    object Device : NavItem("Identitas", Icons.Default.Fingerprint, "device")
+    object Location : NavItem("Lokasi", Icons.Default.Place, "location")
+    object Security : NavItem("Fitur", Icons.Default.SettingsSuggest, "security")
 }
 
 @Composable
@@ -50,7 +50,7 @@ fun MainAppStructure(context: Context) {
     Scaffold(
         bottomBar = { BottomNavigationBar(navController) }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Box(modifier = Modifier.padding(innerPadding)) {
             MainNavigationHost(navController = navController, context = context)
         }
     }
@@ -84,13 +84,12 @@ fun BottomNavigationBar(navController: NavController) {
 @Composable
 fun MainNavigationHost(navController: NavHostController, context: Context) {
     NavHost(navController, startDestination = NavItem.Device.route) {
-        composable(NavItem.Device.route) { DeviceSpooferScreen(context) }
-        composable(NavItem.Location.route) { LocationSpooferScreen(context) }
-        composable(NavItem.Security.route) { SecurityBypassScreen(context) }
+        composable(NavItem.Device.route) { DeviceScreen(context) }
+        composable(NavItem.Location.route) { LocationScreen(context) }
+        composable(NavItem.Security.route) { SecurityScreen(context) }
     }
 }
 
-// Fungsi pembantu izin sistem file (Android 15)
 fun setFilePermissions(context: Context) {
     try {
         val prefName = "shield_config"
@@ -109,136 +108,156 @@ fun setFilePermissions(context: Context) {
     } catch (e: Exception) {}
 }
 
-// Komponen Umum untuk Judul Layar
 @Composable
-fun ScreenHeader(title: String, description: String) {
-    Column(modifier = Modifier.padding(bottom = 24.dp)) {
-        Text(text = title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        Text(text = description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+fun SectionTitle(title: String, subtitle: String) {
+    Column(modifier = Modifier.padding(bottom = 20.dp)) {
+        Text(text = title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
     }
 }
 
-// --- LAYAR 1: DEVICE SPOOFER (Pindah dari Main sebelumnya) ---
 @Composable
-fun DeviceSpooferScreen(context: Context) {
+fun DeviceScreen(context: Context) {
     val prefs = context.getSharedPreferences("shield_config", Context.MODE_PRIVATE)
     
-    var adBlockState by remember { mutableStateOf(prefs.getBoolean("adblock_enabled", false)) }
-    var imeiState by remember { mutableStateOf(prefs.getString("spoof_imei", "") ?: "") }
-    var buildState by remember { mutableStateOf(prefs.getString("spoof_build", "") ?: "") }
-    var releaseState by remember { mutableStateOf(prefs.getString("spoof_release", "") ?: "") }
-    var fingerprintState by remember { mutableStateOf(prefs.getString("spoof_fingerprint", "") ?: "") }
+    var imei by remember { mutableStateOf(prefs.getString("spoof_imei", "") ?: "") }
+    var buildId by remember { mutableStateOf(prefs.getString("spoof_build", "") ?: "") }
+    var release by remember { mutableStateOf(prefs.getString("spoof_release", "") ?: "") }
+    var fingerprint by remember { mutableStateOf(prefs.getString("spoof_fingerprint", "") ?: "") }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
-        ScreenHeader("Device Spoofer", "Manipulasi identitas sistem perangkat")
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
+        SectionTitle("Device Identity", "Manipulasi data mentah hardware")
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Aktifkan AdBlock", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-            Switch(checked = adBlockState, onCheckedChange = { adBlockState = it })
-        }
-        
-        OutlinedTextField(value = imeiState, onValueChange = { imeiState = it }, label = { Text("IMEI") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = buildState, onValueChange = { buildState = it }, label = { Text("Build ID") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = releaseState, onValueChange = { releaseState = it }, label = { Text("OS Release") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = fingerprintState, onValueChange = { fingerprintState = it }, label = { Text("OS Fingerprint") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = imei, onValueChange = { imei = it }, label = { Text("IMEI") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = buildId, onValueChange = { buildId = it }, label = { Text("Build ID") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = release, onValueChange = { release = it }, label = { Text("Android Version") }, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = fingerprint, onValueChange = { fingerprint = it }, label = { Text("Fingerprint") }, modifier = Modifier.fillMaxWidth())
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
-                imeiState = "86" + (1000000000000..9999999999999).random().toString()
-                releaseState = listOf("13", "14", "15").random()
-                buildState = "UP1A.231005.007"
-                fingerprintState = "google/husky/husky:${releaseState}/${buildState}/10817346:user/release-keys"
-            }, modifier = Modifier.weight(1f)) { Text("Acak Data") }
-            
-            Button(onClick = {
+        Button(
+            onClick = {
+                imei = "86" + (1000000000000..9999999999999).random().toString()
+                release = listOf("13", "14", "15").random()
+                buildId = "UP1A.231005.007"
+                fingerprint = "google/husky/husky:${release}/${buildId}/10817346:user/release-keys"
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Generate Identitas Acak") }
+
+        OutlinedButton(
+            onClick = {
                 prefs.edit().apply {
-                    putBoolean("adblock_enabled", adBlockState)
-                    putString("spoof_imei", imeiState)
-                    putString("spoof_build", buildState)
-                    putString("spoof_release", releaseState)
-                    putString("spoof_fingerprint", fingerprintState)
+                    putString("spoof_imei", imei)
+                    putString("spoof_build", buildId)
+                    putString("spoof_release", release)
+                    putString("spoof_fingerprint", fingerprint)
                     apply()
                 }
                 setFilePermissions(context)
-            }, modifier = Modifier.weight(1f)) { Text("Simpan") }
-        }
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        ) { Text("Simpan Konfigurasi") }
     }
 }
 
-// --- LAYAR 2: LOCATION SPOOFER (Fake GPS) ---
 @Composable
-fun LocationSpooferScreen(context: Context) {
+fun LocationScreen(context: Context) {
     val prefs = context.getSharedPreferences("shield_config", Context.MODE_PRIVATE)
-    
-    var fakeGpsState by remember { mutableStateOf(prefs.getBoolean("fake_gps_enabled", false)) }
-    var latState by remember { mutableStateOf(prefs.getFloat("fake_gps_lat", -6.1754f).toString()) }
-    var lonState by remember { mutableStateOf(prefs.getFloat("fake_gps_lon", 106.8272f).toString()) }
+    var isEnabled by remember { mutableStateOf(prefs.getBoolean("fake_gps_enabled", false)) }
+    var lat by remember { mutableStateOf(prefs.getFloat("fake_gps_lat", -6.1754f).toString()) }
+    var lon by remember { mutableStateOf(prefs.getFloat("fake_gps_lon", 106.8272f).toString()) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
-        ScreenHeader("Location Spoofer", "Manipulasi GPS di tingkat Framework")
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Aktifkan Fake GPS", modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-            Switch(checked = fakeGpsState, onCheckedChange = { fakeGpsState = it })
-        }
-
-        OutlinedTextField(
-            value = latState, 
-            onValueChange = { latState = it }, 
-            label = { Text("Latitude") }, 
-            modifier = Modifier.fillMaxWidth(), 
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-        OutlinedTextField(
-            value = lonState, 
-            onValueChange = { lonState = it }, 
-            label = { Text("Longitude") }, 
-            modifier = Modifier.fillMaxWidth(), 
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
-                latState = "-6.1754" // Monas
-                lonState = "106.8272"
-            }, modifier = Modifier.weight(1f)) { Text("Preset Jakarta") }
-
-            Button(onClick = {
-                prefs.edit().apply {
-                    putBoolean("fake_gps_enabled", fakeGpsState)
-                    putFloat("fake_gps_lat", latState.toFloatOrNull() ?: -6.1754f)
-                    putFloat("fake_gps_lon", lonState.toFloatOrNull() ?: 106.8272f)
-                    apply()
-                }
-                setFilePermissions(context)
-            }, modifier = Modifier.weight(1f)) { Text("Simpan Lokasi") }
-        }
-    }
-}
-
-// --- LAYAR 3: SECURITY BYPASS (Bypass Flag Secure) ---
-@Composable
-fun SecurityBypassScreen(context: Context) {
-    val prefs = context.getSharedPreferences("shield_config", Context.MODE_PRIVATE)
-    
-    var bypassFlagSecureState by remember { mutableStateOf(prefs.getBoolean("bypass_flag_secure", false)) }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        ScreenHeader("Security Bypass", "Hancurkan batasan keamanan aplikasi")
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState())) {
+        SectionTitle("Fake GPS Pro", "Kunci koordinat global")
 
         Card(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "Bypass FLAG_SECURE", fontWeight = FontWeight.SemiBold)
-                    Text(text = "Izinkan screenshot/rekam layar di aplikasi m-banking/secure", style = MaterialTheme.typography.bodySmall)
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Aktifkan Lokasi Palsu", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                Switch(checked = isEnabled, onCheckedChange = { isEnabled = it })
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Text("Pilih Negara (Quick Preset):", style = MaterialTheme.typography.labelMedium)
+        
+        val presets = listOf(
+            "Jakarta" to ("-6.1754" to "106.8272"),
+            "Tokyo" to ("35.6895" to "139.6917"),
+            "New York" to ("40.7128" to "-74.0060"),
+            "London" to ("51.5074" to "-0.1278"),
+            "Sydney" to ("-33.8688" to "151.2093")
+        )
+
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 12.dp)) {
+            presets.forEach { (name, coords) ->
+                SuggestionChip(
+                    onClick = { 
+                        lat = coords.first
+                        lon = coords.second
+                    },
+                    label = { Text(name) },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+        }
+
+        OutlinedTextField(value = lat, onValueChange = { lat = it }, label = { Text("Latitude") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = lon, onValueChange = { lon = it }, label = { Text("Longitude") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
+
+        Spacer(Modifier.height(24.dp))
+
+        Button(
+            onClick = {
+                prefs.edit().apply {
+                    putBoolean("fake_gps_enabled", isEnabled)
+                    putFloat("fake_gps_lat", lat.toFloatOrNull() ?: 0f)
+                    putFloat("fake_gps_lon", lon.toFloatOrNull() ?: 0f)
+                    apply()
                 }
-                Switch(checked = bypassFlagSecureState, onCheckedChange = { newState ->
-                    bypassFlagSecureState = newState
-                    prefs.edit().putBoolean("bypass_flag_secure", newState).apply()
+                setFilePermissions(context)
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Terapkan Koordinat") }
+    }
+}
+
+@Composable
+fun SecurityScreen(context: Context) {
+    val prefs = context.getSharedPreferences("shield_config", Context.MODE_PRIVATE)
+    var adBlock by remember { mutableStateOf(prefs.getBoolean("adblock_enabled", false)) }
+    var bypassSecure by remember { mutableStateOf(prefs.getBoolean("bypass_flag_secure", false)) }
+
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+        SectionTitle("Global Security", "Bypass proteksi aplikasi")
+
+        Card(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("AdBlock Engine", fontWeight = FontWeight.Bold)
+                    Text("Blokir koneksi DNS/URL iklan", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = adBlock, onCheckedChange = { 
+                    adBlock = it 
+                    prefs.edit().putBoolean("adblock_enabled", it).apply()
+                    setFilePermissions(context)
+                })
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Bypass Flag Secure", fontWeight = FontWeight.Bold)
+                    Text("Izinkan Screenshot/Rekam Layar", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = bypassSecure, onCheckedChange = { 
+                    bypassSecure = it 
+                    prefs.edit().putBoolean("bypass_flag_secure", it).apply()
                     setFilePermissions(context)
                 })
             }
