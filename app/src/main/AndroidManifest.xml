@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rhdevsx.adblockerlsp">
-    <application android:label="AdBlockerLSP" android:icon="@mipmap/ic_launcher">
+    <application android:label="AdBlockerLSP" android:icon="@android:drawable/sym_def_app_icon">
         <meta-data android:name="xposedmodule" android:value="true" />
         <meta-data android:name="xposeddescription" android:value="Advanced Per-App Ad Blocker" />
         <meta-data android:name="xposedminversion" android:value="93" />
