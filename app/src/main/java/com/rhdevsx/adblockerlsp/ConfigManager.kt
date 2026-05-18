@@ -28,15 +28,6 @@ class ConfigManager(private val context: Context) {
         }
     }
 
-    fun setGlobalMode(mode: String) {
-        prefs.edit().putString("global_mode", mode).apply()
-        makeWorldReadable()
-    }
-
-    fun getGlobalMode(): String {
-        return prefs.getString("global_mode", "blacklist") ?: "blacklist"
-    }
-
     fun setAppEnabled(packageName: String, isEnabled: Boolean) {
         prefs.edit().putBoolean(packageName, isEnabled).apply()
         makeWorldReadable()
