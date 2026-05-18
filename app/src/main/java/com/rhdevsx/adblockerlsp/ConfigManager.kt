@@ -10,7 +10,7 @@ class ConfigManager(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("config", Context.MODE_PRIVATE)
 
     @SuppressLint("SetWorldReadable")
-    private fun makeWorldReadable() {
+    fun makeWorldReadable() {
         val prefFile = File(context.applicationInfo.dataDir, "shared_prefs/config.xml")
         val dataDir = File(context.applicationInfo.dataDir)
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
@@ -26,6 +26,15 @@ class ConfigManager(private val context: Context) {
         if (prefFile.exists()) {
             prefFile.setReadable(true, false)
         }
+    }
+
+    fun setGlobalMode(mode: String) {
+        prefs.edit().putString("global_mode", mode).apply()
+        makeWorldReadable()
+    }
+
+    fun getGlobalMode(): String {
+        return prefs.getString("global_mode", "blacklist") ?: "blacklist"
     }
 
     fun setAppEnabled(packageName: String, isEnabled: Boolean) {
