@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,12 +37,6 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: AdBlockerLSP-Debug
-          path: app/build/outputs/apk/debug/*.apk
-
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
@@ -51,9 +48,15 @@ jobs:
           BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
           $BUILD_TOOLS/zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk app-release-aligned.apk
           $BUILD_TOOLS/apksigner sign --ks keystore.jks --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} --ks-key-alias ${{ secrets.KEY_ALIAS }} --out AdBlockerLSP-Release.apk app-release-aligned.apk
+          mv app/build/outputs/apk/debug/app-debug.apk AdBlockerLSP-Debug.apk
 
-      - name: Upload Signed Release APK
-        uses: actions/upload-artifact@v4
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
         with:
-          name: AdBlockerLSP-Release
-          path: AdBlockerLSP-Release.apk
+          tag_name: build-${{ github.run_number }}
+          name: AdBlockerLSP Build ${{ github.run_number }}
+          files: |
+            AdBlockerLSP-Release.apk
+            AdBlockerLSP-Debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
