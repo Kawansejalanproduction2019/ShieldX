@@ -34,19 +34,17 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
+      - name: Decode Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+
       - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-          buildToolsVersion: 34.0.0
+        run: |
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          $BUILD_TOOLS/zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk app-release-aligned.apk
+          $BUILD_TOOLS/apksigner sign --ks keystore.jks --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} --ks-key-alias ${{ secrets.KEY_ALIAS }} --out AdBlockerLSP-Release.apk app-release-aligned.apk
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: AdBlockerLSP-Release-Signed
-          path: ${{steps.sign_app.outputs.signedReleaseFile}}
+          name: AdBlockerLSP-Release
+          path: AdBlockerLSP-Release.apk
