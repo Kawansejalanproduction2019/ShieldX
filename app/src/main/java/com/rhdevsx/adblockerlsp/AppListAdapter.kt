@@ -37,8 +37,13 @@ class AppListAdapter(
         holder.appIcon.setImageDrawable(app.icon)
         holder.appName.text = app.name
         holder.appPackage.text = app.packageName
+
+        holder.appSwitch.setOnCheckedChangeListener(null)
+        holder.cbScheme1.setOnCheckedChangeListener(null)
+        holder.cbScheme2.setOnCheckedChangeListener(null)
+        holder.cbScheme3.setOnCheckedChangeListener(null)
+
         holder.appSwitch.isChecked = app.isEnabled
-        
         holder.cbScheme1.isChecked = app.scheme1
         holder.cbScheme2.isChecked = app.scheme2
         holder.cbScheme3.isChecked = app.scheme3
