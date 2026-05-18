@@ -11,25 +11,29 @@ class ConfigManager(private val context: Context) {
 
     @SuppressLint("SetWorldReadable")
     fun makeWorldReadable() {
-        val prefFile = File(context.applicationInfo.dataDir, "shared_prefs/config.xml")
         val dataDir = File(context.applicationInfo.dataDir)
         val prefsDir = File(context.applicationInfo.dataDir, "shared_prefs")
+        val prefFile = File(context.applicationInfo.dataDir, "shared_prefs/config.xml")
         
-        if (dataDir.exists()) {
-            dataDir.setExecutable(true, false)
-            dataDir.setReadable(true, false)
-        }
-        if (prefsDir.exists()) {
-            prefsDir.setExecutable(true, false)
-            prefsDir.setReadable(true, false)
-        }
-        if (prefFile.exists()) {
-            prefFile.setReadable(true, false)
+        try {
+            Runtime.getRuntime().exec(arrayOf("chmod", "-R", "777", dataDir.absolutePath)).waitFor()
+        } catch (e: Exception) {
+            if (dataDir.exists()) {
+                dataDir.setExecutable(true, false)
+                dataDir.setReadable(true, false)
+            }
+            if (prefsDir.exists()) {
+                prefsDir.setExecutable(true, false)
+                prefsDir.setReadable(true, false)
+            }
+            if (prefFile.exists()) {
+                prefFile.setReadable(true, false)
+            }
         }
     }
 
     fun setAppEnabled(packageName: String, isEnabled: Boolean) {
-        prefs.edit().putBoolean(packageName, isEnabled).apply()
+        prefs.edit().putBoolean(packageName, isEnabled).commit()
         makeWorldReadable()
     }
 
@@ -42,7 +46,7 @@ class ConfigManager(private val context: Context) {
             .putBoolean("${packageName}_scheme1", scheme1)
             .putBoolean("${packageName}_scheme2", scheme2)
             .putBoolean("${packageName}_scheme3", scheme3)
-            .apply()
+            .commit()
         makeWorldReadable()
     }
 
