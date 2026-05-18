@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rhdevsx.adblockerlsp">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" package="com.rhdevsx.adblockerlsp">
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <application android:label="AdBlockerLSP" android:icon="@android:drawable/sym_def_app_icon" android:theme="@android:style/Theme.DeviceDefault.Light">
         <meta-data android:name="xposedmodule" android:value="true" />
         <meta-data android:name="xposeddescription" android:value="Advanced Per-App Ad Blocker" />
@@ -10,5 +11,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ManageAppsActivity" android:exported="false" />
     </application>
 </manifest>
