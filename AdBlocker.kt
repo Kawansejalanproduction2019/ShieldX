@@ -22,6 +22,7 @@ object AdBlocker {
                     )
                     
                     if (adHosts.contains(host)) {
+                        ModuleLogger.logBlock(lpparam.packageName, "Blokir DNS: $host")
                         param.throwable = java.net.UnknownHostException("Blocked")
                     }
                 }
@@ -36,7 +37,12 @@ object AdBlocker {
                 lpparam.classLoader,
                 "loadAd",
                 "com.google.android.gms.ads.AdRequest",
-                XC_MethodReplacement.returnConstant(null)
+                object : XC_MethodReplacement() {
+                    override fun replaceHookedMethod(param: MethodHookParam): Any? {
+                        ModuleLogger.logBlock(lpparam.packageName, "Blokir AdView loadAd")
+                        return null
+                    }
+                }
             )
         } catch (e: Throwable) {
         }
