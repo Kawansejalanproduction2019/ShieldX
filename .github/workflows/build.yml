@@ -31,19 +31,28 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdBlockerLSP-Debug
+          path: app/build/outputs/apk/debug/*.apk
+
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
       - name: Decode Keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | tr -d '\n\r\t ' | base64 --decode > keystore.jks
 
-      - name: Sign APK
+      - name: Sign Release APK
         run: |
           BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
           $BUILD_TOOLS/zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk app-release-aligned.apk
           $BUILD_TOOLS/apksigner sign --ks keystore.jks --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} --ks-key-alias ${{ secrets.KEY_ALIAS }} --out AdBlockerLSP-Release.apk app-release-aligned.apk
 
-      - name: Upload Signed APK
+      - name: Upload Signed Release APK
         uses: actions/upload-artifact@v4
         with:
           name: AdBlockerLSP-Release
